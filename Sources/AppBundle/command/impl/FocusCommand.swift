@@ -6,6 +6,8 @@ struct FocusCommand: Command {
     /*conforms*/ let shouldResetClosedWindowsCache = false
 
     func run(_ env: CmdEnv, _ io: CmdIo) async throws -> BinaryExitCode {
+        FileLogger.log("FocusCommand target=\(args.target) floatingAsTiling=\(args.floatingAsTiling)",
+                       event: refreshSessionEvent?.description ?? "-")
         guard let target = args.resolveTargetOrReportError(env, io) else { return .fail }
         // todo bug: floating windows break mru
         let floatingWindows = args.floatingAsTiling ? try await makeFloatingWindowsSeenAsTiling(workspace: target.workspace) : []
@@ -116,12 +118,16 @@ struct FocusCommand: Command {
 }
 
 @MainActor private func makeFloatingWindowsSeenAsTiling(workspace: Workspace) async throws -> [FloatingWindowData] {
+    FileLogger.log("makeFloatingWindowsSeenAsTiling ws=\(workspace.name) floatingCount=\(workspace.floatingWindows.count)",
+                   level: .debug, event: refreshSessionEvent?.description ?? "-")
     let mruBefore = workspace.mostRecentWindowRecursive
     defer {
         mruBefore?.markAsMostRecentChild()
     }
     var _floatingWindows: [FloatingWindowData] = []
     for window in workspace.floatingWindows {
+        FileLogger.log("  candidate floating window id=\(window.windowId)",
+                       level: .debug, event: refreshSessionEvent?.description ?? "-")
         let center = try await window.getCenter() // todo bug: we shouldn't access ax api here. What if the window was moved but it wasn't committed to ax yet?
         guard let center else { continue }
 
