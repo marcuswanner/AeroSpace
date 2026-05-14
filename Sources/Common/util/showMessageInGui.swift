@@ -24,7 +24,10 @@ func showMessageInGui(filenameIfConsoleApp: String, title: String, message: Stri
         _ = try? FileManager.default.removeItem(at: legacyLink)
         _ = try? FileManager.default.createSymbolicLink(at: legacyLink, withDestinationURL: file)
 
-        file.absoluteURL.open(with: URL(filePath: "/System/Applications/Utilities/Console.app"))
+        // Console.app renders the file but is awkward for copying text out.
+        // TextEdit opens it as a plain document — fully selectable and
+        // copyable, even when the parent process is being torn down.
+        file.absoluteURL.open(with: URL(filePath: "/System/Applications/TextEdit.app"))
     }
 }
 
