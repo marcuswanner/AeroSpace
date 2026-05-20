@@ -140,7 +140,9 @@ jobs:
             exit 1
           fi
 
-          git push origin nightly --force
+          # Disambiguate from the refs/tags/nightly release tag that prior runs
+          # created — `git push origin nightly` is ambiguous when both exist.
+          git push origin refs/heads/nightly:refs/heads/nightly --force
 
           upstream_sha=$(git rev-parse upstream/main)
           upstream_short=$(git rev-parse --short upstream/main)
