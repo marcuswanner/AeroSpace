@@ -1,5 +1,18 @@
 {
-  "tracked_prs": [],
+  "tracked_prs": [
+    {
+      "number": 2093,
+      "branch": "pr/2093-single-window-aspect-ratio",
+      "upstream_ref": "single-window-aspect",
+      "upstream_owner": "enercif"
+    },
+    {
+      "number": 2085,
+      "branch": "pr/2085-ax-registration-throttle",
+      "upstream_ref": "codex/ax-registration-retry-backoff",
+      "upstream_owner": "Knapsack44"
+    }
+  ],
   "local_patches": [
     {
       "name": "container-id-format-field",
