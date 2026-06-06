@@ -158,6 +158,7 @@ extension FormatVar {
                 return switch f {
                     case .windowId: .success(.int(w.window.windowId))
                     case .windowIsFullscreen: .success(.bool(w.window.isFullscreen))
+                    case .windowIsFloating: isFloatingResult(w: w.window)
                     case .windowTitle: .success(.string(w.title.orDie("Title wasn't prefetched")))
                     case .windowLayout, .windowParentContainerLayout: toLayoutResult(w: w.window)
                 }
@@ -241,6 +242,11 @@ private func toLayoutString(tc: TilingContainer) -> String {
         case (.accordion, .h): return LayoutCmdArgs.LayoutDescription.h_accordion.rawValue
         case (.accordion, .v): return LayoutCmdArgs.LayoutDescription.v_accordion.rawValue
     }
+}
+
+private func isFloatingResult(w: Window) -> Result<Primitive, InterVarExpansionError> {
+    guard let parent = w.parent else { return .failure(.nullParent("NULL-PARENT")) }
+    return .success(.bool(getChildParentRelation(child: w, parent: parent) == .floatingWindow))
 }
 
 private func toLayoutResult(w: Window) -> Result<Primitive, InterVarExpansionError> {
