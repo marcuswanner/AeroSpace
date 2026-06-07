@@ -17,6 +17,10 @@
     {
       "name": "container-id-format-field",
       "branch": "container-id-format-field"
+    },
+    {
+      "name": "accordion-cascade",
+      "branch": "local-patch/accordion-cascade"
     }
   ]
 }
