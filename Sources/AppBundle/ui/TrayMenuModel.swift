@@ -19,6 +19,7 @@ public final class TrayMenuModel: ObservableObject {
 @MainActor func updateTrayText() {
     let sortedMonitors = sortedMonitors
     let focus = focus
+    let focusedWindowIsFloating = focus.windowOrNil?.isFloating == true
     TrayMenuModel.shared.trayText = (activeMode?.takeIf { $0 != mainModeId }?.first.map { "(\($0.uppercased())) " } ?? "") +
         sortedMonitors
         .map {
@@ -49,6 +50,7 @@ public final class TrayMenuModel: ObservableObject {
             isEffectivelyEmpty: $0.isEffectivelyEmpty,
             isVisible: $0.isVisible,
             hasFullscreenWindows: hasFullscreenWindows,
+            isFocusedWindowFloating: focus.workspace == $0 && focusedWindowIsFloating,
         )
     }
     var items = sortedMonitors.map {
@@ -58,10 +60,11 @@ public final class TrayMenuModel: ObservableObject {
             name: $0.activeWorkspace.name,
             isActive: $0.activeWorkspace == focus.workspace,
             hasFullscreenWindows: hasFullscreenWindows,
+            isFocusedWindowFloating: $0.activeWorkspace == focus.workspace && focusedWindowIsFloating,
         )
     }
     let mode = activeMode?.takeIf { $0 != mainModeId }?.first.map {
-        TrayItem(type: .mode, name: $0.uppercased(), isActive: true, hasFullscreenWindows: false)
+        TrayItem(type: .mode, name: $0.uppercased(), isActive: true, hasFullscreenWindows: false, isFocusedWindowFloating: false)
     }
     if let mode {
         items.insert(mode, at: 0)
@@ -76,6 +79,7 @@ struct WorkspaceViewModel: Hashable {
     let isEffectivelyEmpty: Bool
     let isVisible: Bool
     let hasFullscreenWindows: Bool
+    let isFocusedWindowFloating: Bool
 }
 
 enum TrayItemType: String, Hashable {
@@ -90,6 +94,7 @@ struct TrayItem: Hashable, Identifiable {
     let name: String
     let isActive: Bool
     let hasFullscreenWindows: Bool
+    let isFocusedWindowFloating: Bool
     var systemImageName: String? {
         // System image type is only valid for numbers 0 to 50 and single capital char workspace name
         switch Int(name) {
