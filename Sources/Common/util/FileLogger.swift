@@ -90,7 +90,8 @@ public enum FileLogger {
     /// level is filtered out.
     public static func log(_ message: @autoclosure () -> String,
                            level: Level = .info,
-                           event: String? = nil) {
+                           event: String? = nil)
+    {
         let isVerbose = unsafe verboseEnabled
         if level == .debug && !isVerbose { return }
         // Capture the message synchronously so the @autoclosure isn't held
