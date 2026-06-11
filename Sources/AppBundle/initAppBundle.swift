@@ -104,7 +104,7 @@ private func initServerArgs() {
                 unsafe _serverArgs.isReadOnly = true
             case "--verbose":
                 unsafe _serverArgs.verbose = true
-                FileLogger.verboseEnabled = true
+                unsafe FileLogger.verboseEnabled = true
             case "-NSDocumentRevisionsDebugMode" where isDebug:
                 // Skip Xcode CLI args.
                 // Usually it's '-NSDocumentRevisionsDebugMode NO'/'-NSDocumentRevisionsDebugMode YES'
