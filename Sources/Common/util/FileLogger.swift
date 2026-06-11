@@ -1,4 +1,3 @@
-import Darwin
 import Foundation
 
 /// Always-on file logger writing to ~/Library/Logs/AeroSpace/aerospace.log.
@@ -119,7 +118,9 @@ public enum FileLogger {
             // before the kernel has flushed our last few writes — and the
             // whole point of FileLogger is forensic durability after the
             // binary dies unexpectedly. ~1ms/line on SSD; well worth it.
-            unsafe Darwin.fsync(handle.fileDescriptor)
+            // (FileHandle.synchronize() is fsync under the hood, but it's a
+            // safe Swift API — no `unsafe` marker that newer toolchains reject.)
+            try? handle.synchronize()
         }
         rotateIfLarge()
     }
