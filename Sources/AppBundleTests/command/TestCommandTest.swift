@@ -21,6 +21,7 @@ final class TestCommandTest: XCTestCase {
         testParseCommandFail("test foo .= %{app-bundle-id}", msg: "ERROR: Left hand side must be a single interpolation variable\nERROR: Right hand side doesn\'t allow interpolation variables", exitCode: 2)
         testParseCommandFail("test %{app-bundle-id} .= %{app-bundle-id}", msg: "ERROR: Right hand side doesn\'t allow interpolation variables", exitCode: 2)
         testParseCommandFail("test %{newline} .= foo", msg: "ERROR: Can\'t parse \'newline\'.\n       Possible values: (window-id|window-is-fullscreen|window-title|window-layout|window-parent-container-layout|workspace|workspace-is-focused|workspace-is-visible|workspace-root-container-layout|app-bundle-id|app-name|app-pid|app-exec-path|app-bundle-path|monitor-id|monitor-appkit-nsscreen-screens-id|monitor-name|monitor-is-main)", exitCode: 2)
+        testParseCommandFail("test %{window-id} .= %{invalid}", msg: "ERROR: Right hand side doesn\'t allow interpolation variables", exitCode: 2)
     }
 
     func testExec() async throws {
@@ -45,7 +46,7 @@ final class TestCommandTest: XCTestCase {
 
         assertEquals(
             try await parseCommand("test %{workspace-is-focused} .~ foo").cmdOrDie.run(.defaultEnv, .emptyStdin),
-            CmdResult(stdout: [], stderr: ["Interpolation variable: \'workspace-is-focused\' has type of \'bool\'.\nThe \'bool\' type is not compatible with \'.~\' operator."], exitCode: Int32ExitCode(rawValue: 2)),
+            CmdResult(stdout: [], stderr: ["Interpolation variable: \'workspace-is-focused\' has a type of Bool. The Bool type is not compatible with \'.~\' operator."], exitCode: Int32ExitCode(rawValue: 2)),
         )
     }
 

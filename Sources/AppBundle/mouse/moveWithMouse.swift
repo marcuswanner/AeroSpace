@@ -7,14 +7,14 @@ private var moveWithMouseTask: Task<(), any Error>? = nil
 func movedObs(_: AXObserver, ax: AXUIElement, notif: CFString, _: UnsafeMutableRawPointer?) {
     let windowId = ax.containingWindowId()
     let notif = notif as String
-    Task { @MainActor in
+    Task.startUnstructured { @MainActor in
         guard let token: RunSessionGuard = .isServerEnabled else { return }
         guard let windowId, let window = Window.get(byId: windowId), try await isManipulatedWithMouse(window) else {
             scheduleCancellableCompleteRefreshSession(.ax(notif))
             return
         }
         moveWithMouseTask?.cancel()
-        moveWithMouseTask = Task {
+        moveWithMouseTask = Task.startUnstructured {
             try checkCancellation()
             try await runLightSession(.ax(notif), token) {
                 try await moveWithMouse(window)
@@ -68,29 +68,19 @@ private func moveTilingWindow(_ window: Window) {
             index: index,
         )
     } else if let swapTarget {
-        swapWindows(window, swapTarget)
+        swapWindows(mruDominant: window, swapTarget)
     }
 }
 
 @MainActor
-func swapWindows(_ window1: Window, _ window2: Window) {
+func swapWindows(mruDominant window1: Window, _ window2: Window) {
     if window1 == window2 { return }
-    guard let index1 = window1.ownIndex else { return }
-    guard let index2 = window1.ownIndex else { return }
 
-    if index1 < index2 {
-        let binding2 = window2.unbindFromParent()
-        let binding1 = window1.unbindFromParent()
+    let binding2 = window2.unbindFromParent()
+    let binding1 = window1.unbindFromParent()
 
-        window2.bind(to: binding1.parent, adaptiveWeight: binding1.adaptiveWeight, index: binding1.index)
-        window1.bind(to: binding2.parent, adaptiveWeight: binding2.adaptiveWeight, index: binding2.index)
-    } else {
-        let binding1 = window1.unbindFromParent()
-        let binding2 = window2.unbindFromParent()
-
-        window1.bind(to: binding2.parent, adaptiveWeight: binding2.adaptiveWeight, index: binding2.index)
-        window2.bind(to: binding1.parent, adaptiveWeight: binding1.adaptiveWeight, index: binding1.index)
-    }
+    window2.bind(to: binding1.parent, adaptiveWeight: binding1.adaptiveWeight, index: binding1.index)
+    window1.bind(to: binding2.parent, adaptiveWeight: binding2.adaptiveWeight, index: binding2.index)
 }
 
 extension CGPoint {

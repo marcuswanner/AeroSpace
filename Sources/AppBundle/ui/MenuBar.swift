@@ -15,7 +15,7 @@ public func menuBar(viewModel: TrayMenuModel) -> some Scene { // todo should it 
             Text("Workspaces:")
             ForEach(viewModel.workspaces, id: \.name) { workspace in
                 Button {
-                    Task {
+                    Task.startUnstructured {
                         try await runLightSession(.menuBarButton, token) { _ = Workspace.get(byName: workspace.name).focusWorkspace() }
                     }
                 } label: {
@@ -35,7 +35,7 @@ public func menuBar(viewModel: TrayMenuModel) -> some Scene { // todo should it 
         }
         Divider()
         Button(viewModel.isEnabled ? "Disable" : "Enable") {
-            Task {
+            Task.startUnstructured {
                 try await runLightSession(.menuBarButton, .forceRun) { () throws in
                     _ = try await EnableCommand(args: EnableCmdArgs(rawArgs: [], targetState: .toggle))
                         .run(.defaultEnv, .emptyStdin)
@@ -46,9 +46,9 @@ public func menuBar(viewModel: TrayMenuModel) -> some Scene { // todo should it 
         openConfigButton()
         reloadConfigButton()
         Button("Quit \(aeroSpaceAppName)") {
-            Task {
-                defer { terminateApp() }
-                try await terminationHandler.beforeTermination()
+            Task.startUnstructured {
+                terminationHandler?.beforeTermination()
+                terminateApp()
             }
         }.keyboardShortcut("Q", modifiers: .command)
     } label: {
@@ -87,7 +87,7 @@ func openConfigButton(showShortcutGroup: Bool = false) -> some View {
 func reloadConfigButton(showShortcutGroup: Bool = false) -> some View {
     if let token: RunSessionGuard = .isServerEnabled {
         let button = Button("Reload config") {
-            Task {
+            Task.startUnstructured {
                 try await runLightSession(.menuBarButton, token) { _ = try await reloadConfig() }
             }
         }.keyboardShortcut("R", modifiers: .command)

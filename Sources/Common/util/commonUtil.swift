@@ -54,17 +54,23 @@ public func dieT<T>(
             message: message,
         )
     }
-    if !recursionDetectorDuringTermination {
-        let semaphore = DispatchSemaphore(value: 0)
-        Task {
-            defer { semaphore.signal() }
-            try await $recursionDetectorDuringTermination.withValue(true) {
-                try await terminationHandler.beforeTermination()
+    if let terminationHandler, !recursionDetectorDuringTermination {
+        MainActor.runSync {
+            $recursionDetectorDuringTermination.withValue(true) {
+                terminationHandler.beforeTermination()
             }
         }
-        semaphore.wait()
     }
     fatalError("\n" + message)
+}
+
+extension MainActor {
+    static func runSync(block: @escaping @MainActor () -> ()) {
+        switch Thread.isMainThread {
+            case true: MainActor.assumeIsolated(block)
+            case false: DispatchQueue.main.asyncAndWait { block() }
+        }
+    }
 }
 
 public enum RefreshSessionEvent: Sendable, CustomStringConvertible {
@@ -203,5 +209,12 @@ public func allowOnlyCancellationError<T>(_ block: () async throws -> sending T)
         throw e
     } catch {
         die("throws must only be used for CancellationError")
+    }
+}
+
+@inlinable public func zipIfCountsAreEqual<C1, C2>(_ c1: C1, _ c2: C2) -> Zip2Sequence<C1, C2>? where C1: Collection, C2: Collection {
+    switch c1.count == c2.count {
+        case true: zip(c1, c2)
+        case false: nil
     }
 }
