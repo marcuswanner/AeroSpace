@@ -41,7 +41,8 @@ private func readRecentFileLoggerEvents(maxLines: Int) -> String {
         .urls(for: .libraryDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("Logs/AeroSpace/aerospace.log")
     guard let data = try? Data(contentsOf: logFile),
-          let text = String(data: data, encoding: .utf8) else {
+          let text = String(data: data, encoding: .utf8)
+    else {
         return "\n\nRecent events: (no aerospace.log to read)\n"
     }
     let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
