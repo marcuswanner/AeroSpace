@@ -1,26 +1,17 @@
 {
-  "tracked_prs": [
-    {
-      "number": 2093,
-      "branch": "pr/2093-single-window-aspect-ratio",
-      "upstream_ref": "single-window-aspect",
-      "upstream_owner": "enercif"
-    },
-    {
-      "number": 2085,
-      "branch": "pr/2085-ax-registration-throttle",
-      "upstream_ref": "codex/ax-registration-retry-backoff",
-      "upstream_owner": "Knapsack44"
-    }
-  ],
+  "tracked_prs": [],
   "local_patches": [
     {
-      "name": "container-id-format-field",
-      "branch": "container-id-format-field"
+      "name": "logging-stack",
+      "branch": "local-patch/logging-stack"
     },
     {
-      "name": "accordion-cascade",
-      "branch": "local-patch/accordion-cascade"
+      "name": "diet-fix",
+      "branch": "local-patch/diet-fix"
+    },
+    {
+      "name": "floating-indicator",
+      "branch": "local-patch/floating-indicator"
     }
   ]
 }
