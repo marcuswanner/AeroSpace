@@ -207,6 +207,22 @@ jobs:
         if: ${{ always() }}
         run: 'if test -f ./.release/xcodebuild.log; then cat ./.release/xcodebuild.log; fi'
 
+      # ── 9b. Build + bundle aerospace-helper (daemon + aero-notify) ─
+      # Carried as local-patch/aerospace-helper. Two bins of one crate; arm64
+      # only (per config). Dropped into the release staging bin/ and added to
+      # the zip so the cask ships them alongside AeroSpace.
+      - name: Build aerospace-helper
+        run: |
+          set -euo pipefail
+          (cd aerospace-helper && cargo build --release)
+          staging=".release/AeroSpace-v0.0.0-SNAPSHOT/bin"
+          cp aerospace-helper/target/release/aerospace-helper "$staging/"
+          cp aerospace-helper/target/release/aero-notify "$staging/"
+          ( cd .release && zip -g "AeroSpace-v0.0.0-SNAPSHOT.zip" \
+              "AeroSpace-v0.0.0-SNAPSHOT/bin/aerospace-helper" \
+              "AeroSpace-v0.0.0-SNAPSHOT/bin/aero-notify" )
+          "$staging/aerospace-helper" --version
+
       # ── 10. Upload release ───────────────────────────────────────
       - name: Upload release
         env:
@@ -263,11 +279,15 @@ jobs:
             echo ''
             echo '  postflight do'
             echo "    system \"xattr -d com.apple.quarantine #{staged_path}/${zip_root_dir}/bin/aerospace\""
+            echo "    system \"xattr -d com.apple.quarantine #{staged_path}/${zip_root_dir}/bin/aerospace-helper\""
+            echo "    system \"xattr -d com.apple.quarantine #{staged_path}/${zip_root_dir}/bin/aero-notify\""
             echo "    system \"xattr -d com.apple.quarantine #{appdir}/AeroSpace.app\""
             echo '  end'
             echo ''
             echo "  app \"${zip_root_dir}/AeroSpace.app\""
             echo "  binary \"${zip_root_dir}/bin/aerospace\""
+            echo "  binary \"${zip_root_dir}/bin/aerospace-helper\""
+            echo "  binary \"${zip_root_dir}/bin/aero-notify\""
             echo ''
             echo "  binary \"${zip_root_dir}/shell-completion/zsh/_aerospace\","
             echo "      target: \"#{HOMEBREW_PREFIX}/share/zsh/site-functions/_aerospace\""

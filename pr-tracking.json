@@ -16,6 +16,10 @@
     {
       "name": "perf-app-registration-throttle",
       "branch": "local-patch/perf-app-registration-throttle"
+    },
+    {
+      "name": "aerospace-helper",
+      "branch": "local-patch/aerospace-helper"
     }
   ]
 }
