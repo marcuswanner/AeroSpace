@@ -1,12 +1,5 @@
 {
-  "tracked_prs": [
-    {
-      "number": 2085,
-      "branch": "pr/2085-ax-registration-throttle",
-      "upstream_ref": "codex/ax-registration-retry-backoff",
-      "upstream_owner": "Knapsack44"
-    }
-  ],
+  "tracked_prs": [],
   "local_patches": [
     {
       "name": "container-id-format-field",
@@ -19,6 +12,10 @@
     {
       "name": "single-window-aspect-ratio",
       "branch": "local-patch/single-window-aspect-ratio"
+    },
+    {
+      "name": "perf-app-registration-throttle",
+      "branch": "local-patch/perf-app-registration-throttle"
     }
   ]
 }
