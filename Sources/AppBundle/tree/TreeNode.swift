@@ -95,7 +95,7 @@ open class TreeNode: Equatable, AeroAny {
         return result
     }
 
-    private func unbindIfBound() -> BindingData? {
+    func unbindIfBound() -> BindingData? {
         guard let _parent else { return nil }
 
         let index = _parent._children.remove(element: self) ?? dieT("Can't find child in its parent")

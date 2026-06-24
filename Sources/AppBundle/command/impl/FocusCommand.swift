@@ -154,7 +154,10 @@ struct FocusCommand: Command {
             tilingParent = workspace.rootTilingContainer
         }
 
-        let data = window.unbindFromParent()
+        // getCenter() above awaits AX and yields the main actor, so a concurrent
+        // refresh may already have unbound this window. If so it's no longer a
+        // tiling candidate — skip it rather than dieT on an already-unbound node.
+        guard let data = window.unbindIfBound() else { continue }
         let floatingWindowData = FloatingWindowData(
             window: window,
             center: center,
