@@ -14,8 +14,8 @@ final class OnWindowDetectedTest: XCTestCase {
         assertEquals(focus.windowOrNil?.windowId, 1)
 
         let callback = WindowDetectedCallback(
-            matcher: .command(parseCommand("test %{window-id} .= 2").cmdOrDie),
-            rawRun: [],
+            matcher: .command(parseCommand("test %{window-id} = 2").cmdOrDie),
+            rawRun: .empty,
         )
 
         assertEquals(try await callback.matches(detected), true)
@@ -31,8 +31,8 @@ final class OnWindowDetectedTest: XCTestCase {
 
         config.onWindowDetected = [
             WindowDetectedCallback(
-                matcher: .command(TrueCommand.instance),
-                rawRun: [parseCommand("move-node-to-workspace b").cmdOrDie],
+                matcher: .command(.empty), // true
+                rawRun: parseCommand("move-node-to-workspace b").cmdOrDie,
             ),
         ]
 

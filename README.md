@@ -138,11 +138,9 @@ A notes on how to setup the project, build it, how to run the tests, etc. can be
 
 ## macOS compatibility table
 
-|                                                                                | macOS 13 (Ventura) | macOS 14 (Sonoma) | macOS 15 (Sequoia) | macOS 26 (Tahoe) |
-| ------------------------------------------------------------------------------ | ------------------ | ----------------- | ------------------ | ---------------- |
-| AeroSpace binary runs on ...                                                   | +                  | +                 | +                  | +                |
-| AeroSpace debug build from sources is supported on ...                         |                    | +                 | +                  | +                |
-| AeroSpace release build from sources is supported on ... (Requires Xcode 26+)  |                    |                   | +                  | +                |
+* AeroSpace binary runs on: macOS 13+
+* AeroSpace debug build from sources is supported on: macOS 14+
+* AeroSpace release build from sources is supported on: macOS 15+ (Requires Xcode 26+)
 
 ## Sponsorship
 
@@ -169,5 +167,6 @@ Source: [reddit](https://www.reddit.com/r/MacOS/comments/k6hiwk/keyboard_modifie
 
 ## Related projects
 
-- [Amethyst](https://github.com/ianyh/Amethyst)
-- [yabai](https://github.com/koekeishiya/yabai)
+- [Amethyst](https://github.com/ianyh/Amethyst) - tiling window manager à la xmonad
+- [InstantSpaceSwitcher](https://github.com/jurplel/InstantSpaceSwitcher) - Instant space switching by synthesizing trackpad gesture with an artificially high velocity
+- [yabai](https://github.com/koekeishiya/yabai) - a tiling window manager for macOS based on binary space partitioning

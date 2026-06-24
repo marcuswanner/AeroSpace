@@ -87,7 +87,7 @@ final class MacWindow: Window {
             deadWindowWorkspace == prevFocusedWorkspace && prevFocusedWorkspaceDate.distance(to: .now) < 1
         {
             switch parent.cases {
-                case .tilingContainer, .workspace, .macosHiddenAppsWindowsContainer, .macosFullscreenWindowsContainer:
+                case .tilingContainer, .floatingWindowsContainer, .macosHiddenAppsWindowsContainer, .macosFullscreenWindowsContainer:
                     let deadWindowFocus = deadWindowWorkspace.toLiveFocus()
                     _ = setFocus(to: deadWindowFocus)
                     // Guard against "Apple Reminders popup" bug: https://github.com/nikitabobko/AeroSpace/issues/201
@@ -96,8 +96,10 @@ final class MacWindow: Window {
                         //   https://github.com/nikitabobko/AeroSpace/issues/65
                         deadWindowFocus.windowOrNil?.nativeFocus()
                     }
-                case .macosPopupWindowsContainer, .macosMinimizedWindowsContainer:
-                    break // Don't switch back on popup destruction
+                case .macosPopupWindowsContainer, // Don't switch back on popup destruction
+                     .workspace, // Workspace is invalid parent for windows
+                     .macosMinimizedWindowsContainer: // Don't switch back on minimized windows destruction
+                    break
             }
         }
     }
@@ -209,7 +211,7 @@ private func unbindAndGetBindingDataForNewWindow(_ windowId: UInt32, _ macApp: M
     let windowLevel = getWindowLevel(for: windowId)
     return switch try await macApp.getAxUiElementWindowType(windowId, windowLevel) {
         case .popup: BindingData(parent: macosPopupWindowsContainer, adaptiveWeight: WEIGHT_AUTO, index: INDEX_BIND_LAST)
-        case .dialog: BindingData(parent: workspace, adaptiveWeight: WEIGHT_AUTO, index: INDEX_BIND_LAST)
+        case .dialog: BindingData(parent: workspace.floatingWindowsContainer, adaptiveWeight: WEIGHT_AUTO, index: INDEX_BIND_LAST)
         case .window: unbindAndGetBindingDataForNewTilingWindow(workspace, window: window)
     }
 }
@@ -236,30 +238,31 @@ private func unbindAndGetBindingDataForNewTilingWindow(_ workspace: Workspace, w
 
 @MainActor
 func tryOnWindowDetected(_ window: Window) async throws {
-    guard let parent = window.parent else { return }
-    switch parent.cases {
-        case .tilingContainer, .workspace, .macosMinimizedWindowsContainer,
+    switch window.windowParentCases {
+        case .tilingContainer, .floatingWindowsContainer, .macosMinimizedWindowsContainer,
              .macosFullscreenWindowsContainer, .macosHiddenAppsWindowsContainer:
-            try await onWindowDetected(window)
-        case .macosPopupWindowsContainer:
+            _ = try await onWindowDetected(.defaultEnv, CmdIoImpl.emptyStdinIgnoringOut, window)
+        case .macosPopupWindowsContainer, .unbound:
             break
     }
 }
 
 @MainActor
-private func onWindowDetected(_ window: Window) async throws {
+func onWindowDetected(_ env: CmdEnv, _ io: CmdIo, _ window: Window) async throws -> Int32ExitCode {
     broadcastEvent(.windowDetected(
         windowId: window.windowId,
         workspace: window.nodeWorkspace?.name,
         appBundleId: window.app.rawAppBundleId,
         appName: window.app.name,
     ))
+    var lastExitCode = Int32ExitCode.succ
     for callback in config.onWindowDetected where try await callback.matches(window) {
-        _ = try await callback.run.runCmdSeq(.defaultEnv.copy(\.windowId, window.windowId), .emptyStdin)
+        lastExitCode = try await callback.run.run(env.withWindowId(window.windowId), io)
         if !callback.checkFurtherCallbacks {
-            return
+            return lastExitCode
         }
     }
+    return lastExitCode
 }
 
 extension WindowDetectedCallback {
@@ -284,7 +287,7 @@ extension WindowDetectedCallback {
                 }
                 return true
             case .command(let command):
-                return try await command.run(.defaultEnv.copy(\.windowId, window.windowId), .emptyStdin).exitCode.rawValue == 0
+                return try await command.run(.defaultEnv.withWindowId(window.windowId), .emptyStdin).exitCode.rawValue == 0
         }
     }
 }

@@ -7,5 +7,5 @@ struct TrueCommand: Command {
 
     func run(_ env: CmdEnv, _ io: CmdIo) async throws -> ConditionalExitCode { ._true }
 
-    public static let instance = TrueCommand(args: TrueCmdArgs(rawArgs: []))
+    static let instance = TrueCommand(args: TrueCmdArgs(rawArgs: []))
 }

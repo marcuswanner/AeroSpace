@@ -33,9 +33,9 @@ var defaultConfigUrl: URL {
 @MainActor var configUrl: URL = defaultConfigUrl
 
 struct Config: ConvenienceCopyable {
-    var configVersion: Int = 1
-    var afterLoginCommand: [any Command] = []
-    var afterStartupCommand: [any Command] = []
+    var configVersion: ConfigVersion = ._1
+    var _afterLoginCommand: [any Command] = []
+    var afterStartupCommand: Shell<any Command> = .empty
     var _indentForNestedContainersWithTheSameOrientation: Void = ()
     var enableNormalizationFlattenContainers: Bool = true
     var _nonEmptyWorkspacesRootContainersLayoutOnStartup: Void = ()
@@ -51,15 +51,26 @@ struct Config: ConvenienceCopyable {
     var keyMapping = KeyMapping()
     var execConfig: ExecConfig = ExecConfig()
 
-    var onFocusChanged: [any Command] = []
+    var onFocusChanged: Shell<any Command> = .empty
     // var onFocusedWorkspaceChanged: [any Command] = []
-    var onFocusedMonitorChanged: [any Command] = []
+    var onFocusedMonitorChanged: Shell<any Command> = .empty
 
     var gaps: Gaps = .zero
     var workspaceToMonitorForceAssignment: [String: [MonitorDescription]] = [:]
     var modes: [String: Mode] = [:]
     var onWindowDetected: [WindowDetectedCallback] = []
-    var onModeChanged: [any Command] = []
+    var onModeChanged: Shell<any Command> = .empty
+}
+
+enum ConfigVersion: Int, Comparable, CaseIterable, Sendable, CustomStringConvertible {
+    case _1 = 1
+    case _2 = 2
+
+    static let max = allCases.max().orDie()
+    static let min = allCases.min().orDie()
+    static func < (lhs: ConfigVersion, rhs: ConfigVersion) -> Bool { lhs.rawValue < rhs.rawValue }
+
+    var description: String { rawValue.description }
 }
 
 enum DefaultContainerOrientation: String {

@@ -15,8 +15,8 @@ final class BalanceSizesCommandTest: XCTestCase {
             }
         }
 
-        try await BalanceSizesCommand(args: BalanceSizesCmdArgs(rawArgs: []))
-            .run(.defaultEnv.copy(\.workspaceName, name), .emptyStdin)
+        try await parseCommand("balance-sizes").cmdOrDie
+            .run(.defaultEnv.withWorkspaceName(name), .emptyStdin)
 
         for window in workspace.rootTilingContainer.children {
             assertEquals(window.getWeight(workspace.rootTilingContainer.orientation), 1)

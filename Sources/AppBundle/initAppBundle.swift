@@ -12,18 +12,8 @@ import Foundation
             interceptTermination(SIGINT)
             interceptTermination(SIGKILL)
         }
-        if try await !reloadConfig() {
-            var out = ""
-            check(
-                try await reloadConfig(forceConfigUrl: defaultConfigUrl, stdout: &out),
-                """
-                Can't load default config. Your installation is probably corrupted.
-                Please don't modify \(defaultConfigUrl.description.singleQuoted)
-
-                \(out)
-                """,
-            )
-        }
+        try await bootstrapConfig()
+        _ = try await reloadConfig()
 
         checkAccessibilityPermissions()
         startUnixSocketServer()
@@ -33,15 +23,26 @@ import Foundation
         await runHeavyCompleteRefreshSession(
             .startup,
             // It's important for the first initialization to be non cancellable
-            // to make sure that isStartup propagates // to all places
+            // to make sure that isStartup propagates to all places
             cancellable: false,
             layoutWorkspaces: false,
         )
         try await runLightSession(.startup, .forceRun) {
             smartLayoutAtStartup()
-            _ = try await config.afterStartupCommand.runCmdSeq(.defaultEnv, .emptyStdin)
+            _ = try await config.afterStartupCommand.run(.defaultEnv, .emptyStdin)
         }
     }
+}
+
+@MainActor private func bootstrapConfig() async throws {
+    let result = try await reloadConfig(forceConfigUrl: defaultConfigUrl)
+    let msg = """
+        Can't load default config. Your installation is probably corrupted.
+        Please don't modify \(defaultConfigUrl.description.singleQuoted)
+
+        \(result.stdout)
+        """
+    check(result.isOk, msg)
 }
 
 @MainActor

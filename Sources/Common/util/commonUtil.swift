@@ -12,17 +12,16 @@ public var refreshSessionEvent: RefreshSessionEvent? = nil
 @TaskLocal
 private var recursionDetectorDuringTermination = false
 
-public func dieT<T>(
+public func bugPrompt(
     _ __message: String = "",
     file: StaticString = #fileID,
     line: Int = #line,
     column: Int = #column,
     function: String = #function,
-) -> T {
+) -> String {
     let _message = __message.contains("\n") ? "\n" + __message.prefixLines(with: "    ") : __message
     let thread = Thread.current
-    let message =
-        """
+    return """
         Please report to:
             https://github.com/nikitabobko/AeroSpace/discussions/categories/potential-bugs
             Please describe what you did to trigger this error
@@ -45,6 +44,16 @@ public func dieT<T>(
         Stacktrace:
         \(getStringStacktrace())
         """
+}
+
+public func dieT<T>(
+    _ __message: String = "",
+    file: StaticString = #fileID,
+    line: Int = #line,
+    column: Int = #column,
+    function: String = #function,
+) -> T {
+    let message = bugPrompt(__message, file: file, line: line, column: column, function: function)
     if !isUnitTest && isServer {
         showMessageInGui(
             filenameIfConsoleApp: recursionDetectorDuringTermination
@@ -83,8 +92,6 @@ public enum RefreshSessionEvent: Sendable, CustomStringConvertible {
     case socketServer(any CmdArgs)
     case resetManipulatedWithMouse
     case ax(String)
-    case onFocusedMonitorChanged
-    case onFocusChanged
     case onModeChanged
 
     public var isStartup: Bool {
@@ -102,16 +109,13 @@ public enum RefreshSessionEvent: Sendable, CustomStringConvertible {
             case .resetManipulatedWithMouse: "resetManipulatedWithMouse"
             case .socketServer(let args): "socketServer: \(args)"
             case .startup: "startup"
-            case .onFocusedMonitorChanged: "onFocusedMonitorChanged"
-            case .onFocusChanged: "onFocusChanged"
             case .onModeChanged: "onModeChanged"
         }
     }
 }
 
-public func throwT<T>(_ error: Error) throws -> T {
-    throw error
-}
+// periphery:ignore
+public func throwT<T, E: Error>(_ error: E) throws(E) -> T { throw error }
 
 public func getStringStacktrace() -> String { Thread.callStackSymbols.joined(separator: "\n") }
 
