@@ -7,6 +7,8 @@ import Foundation
         initTerminationHandler()
         unsafe _isCli = false
         initServerArgs()
+        FileLogger.rotateForNewSession()
+        FileLogger.log("AeroSpace \(aeroSpaceAppVersion) \(gitHash) starting; verbose=\(serverArgs.verbose) readOnly=\(serverArgs.isReadOnly)")
         if isDebug {
             await toggleReleaseServerIfDebug(.off)
             interceptTermination(SIGINT)
@@ -61,6 +63,7 @@ var isStartup: Bool { _isStartup ?? dieT("isStartup is not initialized") }
 struct ServerArgs: Sendable {
     var configLocation: String? = nil
     var isReadOnly: Bool = false
+    var verbose: Bool = false
 }
 
 private let serverHelp = """
@@ -73,6 +76,8 @@ private let serverHelp = """
                               and ${XDG_CONFIG_HOME}/aerospace/aerospace.toml
       --read-only             Disable window management.
                               Useful if you want to use only debug-windows or other query commands.
+      --verbose               Enable debug-level logging to ~/Library/Logs/AeroSpace/aerospace.log.
+                              Info-level events are always logged; this flag adds per-command details.
     """
 
 nonisolated(unsafe) private var _serverArgs = ServerArgs()
@@ -97,6 +102,9 @@ private func initServerArgs() {
                 index += 1
             case "--read-only": // todo rename to '--disabled' and unite with disabled feature
                 unsafe _serverArgs.isReadOnly = true
+            case "--verbose":
+                unsafe _serverArgs.verbose = true
+                unsafe FileLogger.verboseEnabled = true
             case "-NSDocumentRevisionsDebugMode" where isDebug:
                 // Skip Xcode CLI args.
                 // Usually it's '-NSDocumentRevisionsDebugMode NO'/'-NSDocumentRevisionsDebugMode YES'
