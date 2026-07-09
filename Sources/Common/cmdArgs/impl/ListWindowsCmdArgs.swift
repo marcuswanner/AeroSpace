@@ -7,7 +7,6 @@ public struct ListWindowsCmdArgs: CmdArgs {
     /*conforms*/ public var commonState: CmdArgsCommonState
     public static let parser: CmdParser<Self> = .init(
         kind: .listWindows,
-        allowInConfig: false,
         help: list_windows_help_generated,
         flags: [
             "--all": trueBoolFlag(\.allAlias),
@@ -16,7 +15,7 @@ public struct ListWindowsCmdArgs: CmdArgs {
             "--focused": trueBoolFlag(\.filteringOptions.focused),
             "--monitor": ArgParser(\.filteringOptions.monitors, parseMonitorIds),
             "--workspace": ArgParser(\.filteringOptions.workspaces, parseWorkspaces),
-            "--pid": singleValueSubArgParser(\.filteringOptions.pidFilter, "<pid>") { Int32($0).orFailure("Can't convert to Int32") },
+            "--pid": singleValueSubArgParser(\.filteringOptions.pidFilter, "<pid>") { Int32($0).toResult("Can't convert to Int32") },
             "--app-bundle-id": singleValueSubArgParser(\.filteringOptions.appIdFilter, "<app-bundle-id>", Result.success),
 
             // Formatting flags
@@ -40,7 +39,7 @@ public struct ListWindowsCmdArgs: CmdArgs {
     public var outputOnlyCount: Bool = false
     public var json: Bool = false
 
-    public struct FilteringOptions: ConvenienceCopyable, Equatable, Sendable {
+    public struct FilteringOptions: ConvenienceMutable, Equatable, Sendable {
         public var monitors: [MonitorId] = []
         public var focused: Bool = false
         public var workspaces: [WorkspaceFilter] = []

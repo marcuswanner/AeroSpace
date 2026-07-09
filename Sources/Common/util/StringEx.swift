@@ -1,6 +1,13 @@
-public typealias Parsed<T> = Result<T, String>
-extension String: @retroactive Error {} // Make it possible to use String in Result. todo migrate to self written Result monad
-extension Array: @retroactive Error where Element: Error {} // Make it possible to use [String] in Result. todo migrate to self written Result monad
+import Foundation
+
+public typealias ResOrStr<T> = Result<T, String>
+extension String: @retroactive LocalizedError { // Make it possible to use String in Result. todo migrate to self written Result monad
+    public var errorDescription: String? { self }
+}
+
+// Make it possible to use [String] in Result. todo migrate to self written Result monad
+extension Array: @retroactive Error where Element: Error {}
+extension Array: @retroactive LocalizedError where Element: LocalizedError {}
 
 extension String {
     public func trim() -> String {
@@ -11,7 +18,6 @@ extension String {
         split(separator: "\n", omittingEmptySubsequences: false).map { with + $0 }.joined(separator: "\n")
     }
 
-    public func quoted(with char: String) -> String { char + self + char }
     public var singleQuoted: String { "'" + self + "'" }
     public var doubleQuoted: String { "\"" + self + "\"" }
 }
@@ -77,7 +83,7 @@ extension String {
                     switch token {
                         case .literal(let literal): .success(literal)
                         case .interVar(let value):
-                            variables[value].orFailure("Env variable '\(value)' isn't presented in AeroSpace.app env vars, "
+                            variables[value].toResult("Env variable '\(value)' isn't presented in AeroSpace.app env vars, "
                                 + "or not available for interpolation (because it's mutated)")
                     }
                 }

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 cd "$(dirname "$0")"
 source ./script/setup.sh
 
@@ -16,7 +16,7 @@ done
 ### BUILD ###
 #############
 
-./build-docs.sh
+./build-docs.sh --release
 ./build-shell-completion.sh
 
 ./generate.sh
@@ -36,17 +36,19 @@ swift build -c release --arch arm64 --arch x86_64 --product aerospace -Xswiftc -
 
 rm -rf .release && mkdir .release
 
-xcode_configuration="Release"
-xcodebuild -version
-xcodebuild-pretty .release/xcodebuild.log clean build \
-    -scheme AeroSpace \
-    -destination "generic/platform=macOS" \
-    -configuration "$xcode_configuration" \
-    -derivedDataPath .xcode-build
+cd ./xcode
+    xcode_configuration="Release"
+    xcodebuild -version
+    xcodebuild-pretty ../.release/xcodebuild.log clean build \
+        -scheme AeroSpace \
+        -destination "generic/platform=macOS" \
+        -configuration "$xcode_configuration" \
+        -derivedDataPath .xcode-build
+cd -
 
 git checkout .
 
-cp -r ".xcode-build/Build/Products/$xcode_configuration/AeroSpace.app" .release
+cp -r "xcode/.xcode-build/Build/Products/$xcode_configuration/AeroSpace.app" .release
 cp -r .build/apple/Products/Release/aerospace .release
 
 ################

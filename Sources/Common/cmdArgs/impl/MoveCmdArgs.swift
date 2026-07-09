@@ -3,7 +3,6 @@ public struct MoveCmdArgs: CmdArgs {
     fileprivate init(rawArgs: StrArrSlice) { self.commonState = .init(rawArgs) }
     public static let parser: CmdParser<Self> = .init(
         kind: .move,
-        allowInConfig: true,
         help: move_help_generated,
         flags: [
             "--window-id": windowIdSubArgParser(),
@@ -20,11 +19,6 @@ public struct MoveCmdArgs: CmdArgs {
     public var rawBoundariesAction: WhenBoundariesCrossed? = nil
     public var failIfFullscreen: Bool = false
     public var failIfMacosNativeFullscreen: Bool = false
-
-    public init(rawArgs: [String], _ direction: CardinalDirection) {
-        self.commonState = .init(rawArgs.slice)
-        self.direction = .initialized(direction)
-    }
 
     public enum Boundaries: String, CaseIterable, Equatable, Sendable {
         case workspace

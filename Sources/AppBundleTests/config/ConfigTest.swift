@@ -8,6 +8,7 @@ final class ConfigTest: XCTestCase {
         let toml = try! String(contentsOf: projectRoot.appending(component: "docs/config-examples/i3-like-config-example.toml"), encoding: .utf8)
         let result = parseConfig(toml)
         assertEquals(result.errors, [])
+        assertEquals(result.warnings, [])
         assertEquals(result.config.execConfig, defaultConfig.execConfig)
         assertEquals(result.config.enableNormalizationFlattenContainers, false)
         assertEquals(result.config.enableNormalizationOppositeOrientationForNestedContainers, false)
@@ -17,11 +18,15 @@ final class ConfigTest: XCTestCase {
         let result = parseConfig("")
         assertEquals(result.errors, [])
         assertTrue(result.allowReloadConfig)
+        assertEquals(result.warnings.count, 1)
+        assertTrue(result.strWarnings.first?.starts(with: "[WARNING] The current 'config-version = 1' is outdated.") == true)
     }
 
     func testParseDefaultConfig() {
         let toml = try! String(contentsOf: projectRoot.appending(component: "docs/config-examples/default-config.toml"), encoding: .utf8)
-        assertEquals(parseConfig(toml).errors, [])
+        let result = parseConfig(toml)
+        assertEquals(result.errors, [])
+        assertEquals(result.warnings, [])
     }
 
     func testConfigVersionOutOfBounds() {
@@ -31,7 +36,32 @@ final class ConfigTest: XCTestCase {
             """,
         )
         assertTrue(result.allowReloadConfig)
-        assertEquals(result.errors, ["[ERROR] config-version: config-version must be in [1, 2] range"])
+        assertEquals(result.strErrors, ["[ERROR] config-version: config-version must be in [1, 2] range"])
+    }
+
+    func testConfigVersionOutdatedWarning() {
+        let result = parseConfig(
+            """
+            config-version = 1
+            """,
+        )
+        assertTrue(result.allowReloadConfig)
+        assertEquals(result.errors, [])
+        assertEquals(result.strWarnings, [
+            "[WARNING] The current 'config-version = 1' is outdated. " +
+                "Please consider migrating to 'config-version = \(ConfigVersion.max)'. " +
+                "See https://nikitabobko.github.io/AeroSpace/guide#config-version for the migration guide.",
+        ])
+    }
+
+    func testLatestConfigVersionNoWarning() {
+        let result = parseConfig(
+            """
+            config-version = \(ConfigVersion.max)
+            """,
+        )
+        assertEquals(result.errors, [])
+        assertEquals(result.warnings, [])
     }
 
     func testExecOnWorkspaceChangeDifferentTypesError() {
@@ -39,7 +69,7 @@ final class ConfigTest: XCTestCase {
             """
             exec-on-workspace-change = ['', 1]
             """,
-        ).errors
+        ).strErrors
         assertEquals(errors, ["[ERROR] exec-on-workspace-change[1]: Expected type is \'String\'. But actual type is \'Int\'"])
     }
 
@@ -49,7 +79,7 @@ final class ConfigTest: XCTestCase {
             config-version = 2
             persistent-workspaces = ['a', 'a']
             """,
-        ).errors
+        ).strErrors
         assertEquals(errors, ["[ERROR] persistent-workspaces: Contains duplicated workspace names"])
     }
 
@@ -58,18 +88,18 @@ final class ConfigTest: XCTestCase {
             """
             persistent-workspaces = ['a']
             """,
-        ).errors
+        ).strErrors
         assertEquals(errors, ["[ERROR] persistent-workspaces: This config option is only available since \'config-version = 2\'"])
     }
 
-    func testQueryCantBeUsedInConfig() {
+    func testWrongTypeForCommand() {
         let errors = parseConfig(
             """
             [mode.main.binding]
-                alt-a = 'list-apps'
+                alt-a = [1, 'focus right']
             """,
-        ).errors
-        XCTAssertTrue(errors.singleOrNil()?.contains("cannot be used in config") == true)
+        ).strErrors
+        assertEquals(errors, ["[ERROR] mode.main.binding.alt-a[0]: Expected type is \'String\'. But actual type is \'Int\'"])
     }
 
     func testDropBindings() {
@@ -91,7 +121,7 @@ final class ConfigTest: XCTestCase {
             """,
         )
         assertEquals(result.errors, [])
-        let binding = HotkeyBinding(.option, .h, [FocusCommand.new(direction: .left)])
+        let binding = HotkeyBinding(.option, .h, .cmd(FocusCommand.new(direction: .left)))
         assertEquals(
             result.config.modes[mainModeId],
             Mode(bindings: [binding.descriptionWithKeyCode: binding]),
@@ -106,7 +136,7 @@ final class ConfigTest: XCTestCase {
             """,
         )
         assertEquals(
-            result.errors,
+            result.strErrors,
             ["[ERROR] mode: Please specify \'main\' mode"],
         )
         assertEquals(result.config.modes[mainModeId], nil)
@@ -122,13 +152,13 @@ final class ConfigTest: XCTestCase {
             """,
         )
         assertEquals(
-            result.errors,
+            result.strErrors,
             [
                 "[ERROR] mode.main.binding.aalt-j: Can\'t parse modifiers in \'aalt-j\' binding",
                 "[ERROR] mode.main.binding.alt-hh: Can\'t parse the key in \'alt-hh\' binding",
             ],
         )
-        let binding = HotkeyBinding(.option, .k, [FocusCommand.new(direction: .up)])
+        let binding = HotkeyBinding(.option, .k, .cmd(FocusCommand.new(direction: .up)))
         assertEquals(
             result.config.modes[mainModeId],
             Mode(bindings: [binding.descriptionWithKeyCode: binding]),
@@ -157,7 +187,7 @@ final class ConfigTest: XCTestCase {
             """,
         )
         assertEquals(
-            result.errors,
+            result.strErrors,
             ["[ERROR] unknownKey: Unknown top-level key"],
         )
         assertEquals(result.config.enableNormalizationFlattenContainers, false)
@@ -172,7 +202,7 @@ final class ConfigTest: XCTestCase {
             """,
         )
         assertEquals(
-            result.errors,
+            result.strErrors,
             ["[ERROR] gaps.unknownKey: Unknown key"],
         )
         assertEquals(result.config.enableNormalizationFlattenContainers, false)
@@ -183,7 +213,7 @@ final class ConfigTest: XCTestCase {
             """
             enable-normalization-flatten-containers = 'true'
             """,
-        ).errors
+        ).strErrors
         assertEquals(
             errors,
             ["[ERROR] enable-normalization-flatten-containers: Expected type is \'Bool\'. But actual type is \'String\'"],
@@ -193,38 +223,38 @@ final class ConfigTest: XCTestCase {
     func testConfigParseError() {
         assertFalse(parseConfig("true").allowReloadConfig)
         assertEquals(
-            parseConfig("true").errors,
+            parseConfig("true").strErrors,
             ["[ERROR] (Line 1) Syntax error: missing =."],
         )
 
         assertEquals(
-            parseConfig("\n1").errors,
+            parseConfig("\n1").strErrors,
             ["[ERROR] (Line 2) Syntax error: missing =."],
         )
 
         assertEquals(
-            parseConfig("foo: 1").errors,
+            parseConfig("foo: 1").strErrors,
             ["[ERROR] (Line 1) Syntax error: missing =."],
         )
 
         assertEquals(
-            parseConfig("foo = 1.0").errors,
+            parseConfig("foo = 1.0").strErrors,
             ["[ERROR] foo: Unsupported TOML type: Double"],
         )
 
         assertEquals(
-            parseConfig("foo.bar = 1979-05-27").errors,
+            parseConfig("foo.bar = 1979-05-27").strErrors,
             ["[ERROR] foo.bar: Unsupported TOML type: LocalDate", "[ERROR] foo: Unknown top-level key"],
         )
     }
 
     func testMoveWorkspaceToMonitorCommandParsing() {
-        XCTAssertTrue(parseCommand("move-workspace-to-monitor --wrap-around next").cmdOrNil is MoveWorkspaceToMonitorCommand)
-        XCTAssertTrue(parseCommand("move-workspace-to-display --wrap-around next").cmdOrNil is MoveWorkspaceToMonitorCommand)
+        XCTAssertTrue(parseCommand("move-workspace-to-monitor --wrap-around next").cmdOrNil?.flatten().singleOrNil() is MoveWorkspaceToMonitorCommand)
+        XCTAssertTrue(parseCommand("move-workspace-to-display --wrap-around next").cmdOrNil?.flatten().singleOrNil() is MoveWorkspaceToMonitorCommand)
     }
 
     func testParseTiles() {
-        let command = parseCommand("layout tiles h_tiles v_tiles list h_list v_list").cmdOrNil
+        let command = parseCommand("layout tiles h_tiles v_tiles list h_list v_list").cmdOrNil?.flatten().singleOrNil()
         XCTAssertTrue(command is LayoutCommand)
         assertEquals((command as! LayoutCommand).args.toggleBetween.val, [.tiles, .h_tiles, .v_tiles, .tiles, .h_tiles, .v_tiles])
 
@@ -242,7 +272,7 @@ final class ConfigTest: XCTestCase {
             [mode.foo.binding]
                 alt-s = 'split horizontal'
             """,
-        ).errors
+        ).strErrors
         let expected = """
             [ERROR] The config contains:
             1. usage of 'split' command
@@ -288,7 +318,7 @@ final class ConfigTest: XCTestCase {
         assertEquals([
             "[ERROR] workspace-to-monitor-force-assignment.w7[0]: Empty string is an illegal monitor description",
             "[ERROR] workspace-to-monitor-force-assignment.w8: Monitor sequence numbers uses 1-based indexing. Values less than 1 are illegal",
-        ], result.errors)
+        ], result.strErrors)
         assertEquals([:], defaultConfig.workspaceToMonitorForceAssignment)
     }
 
@@ -297,6 +327,7 @@ final class ConfigTest: XCTestCase {
             """
             on-window-detected = [
                 { # 0
+                    if = 'true',
                     check-further-callbacks = true,
                     run = ['layout floating', 'move-node-to-workspace W'],
                 },
@@ -306,18 +337,19 @@ final class ConfigTest: XCTestCase {
                 },
                 {}, # 2
                 { # 3
-                    run = ['move-node-to-workspace S', 'layout tiling'],
+                    if = 'true', run = ['move-node-to-workspace S', 'layout tiling'],
                 },
                 { # 4
-                    run = ['move-node-to-workspace S', 'move-node-to-workspace W'],
+                    if = 'true', run = ['move-node-to-workspace S', 'move-node-to-workspace W'],
                 },
                 { # 5
-                    run = ['move-node-to-workspace S', 'layout h_tiles'],
+                    if = 'true', run = ['move-node-to-workspace S', 'layout h_tiles'],
                 },
                 { # 6
-                    if = 'test %{app-bundle-id} .= org.alacritty',
+                    if = 'test %{app-bundle-id} = org.alacritty',
                     run = ['move-node-to-workspace T'],
                 },
+                { if = '', run = ''}, # 7
             ]
             """,
         )
@@ -327,47 +359,70 @@ final class ConfigTest: XCTestCase {
             .copy(\.rhs, .initialized("org.alacritty"))
         assertEquals(result.config.onWindowDetected, [
             WindowDetectedCallback( // 0
+                matcher: .command(.cmd(TrueCommand.instance)),
                 checkFurtherCallbacks: true,
-                rawRun: [
-                    LayoutCommand(args: LayoutCmdArgs(rawArgs: [], toggleBetween: [.floating])),
-                    MoveNodeToWorkspaceCommand(args: MoveNodeToWorkspaceCmdArgs(workspace: "W")),
-                ],
+                rawRun: .seq([
+                    .cmd(LayoutCommand(args: LayoutCmdArgs(rawArgs: [], toggleBetween: [.floating]))),
+                    .cmd(MoveNodeToWorkspaceCommand(args: MoveNodeToWorkspaceCmdArgs(workspace: "W"))),
+                ]),
             ),
             WindowDetectedCallback( // 1
                 matcher: .legacy(LegacyWindowDetectedCallbackMatcher(
                     appId: "com.apple.systempreferences",
                 )),
-                rawRun: [],
+                rawRun: .empty,
             ),
             WindowDetectedCallback( // 3
-                rawRun: [
-                    MoveNodeToWorkspaceCommand(args: MoveNodeToWorkspaceCmdArgs(workspace: "S")),
-                    LayoutCommand(args: LayoutCmdArgs(rawArgs: [], toggleBetween: [.tiling])),
-                ],
+                matcher: .command(.cmd(TrueCommand.instance)),
+                rawRun: .seq([
+                    .cmd(MoveNodeToWorkspaceCommand(args: MoveNodeToWorkspaceCmdArgs(workspace: "S"))),
+                    .cmd(LayoutCommand(args: LayoutCmdArgs(rawArgs: [], toggleBetween: [.tiling]))),
+                ]),
             ),
             WindowDetectedCallback( // 4
-                rawRun: [
-                    MoveNodeToWorkspaceCommand(args: MoveNodeToWorkspaceCmdArgs(workspace: "S")),
-                    MoveNodeToWorkspaceCommand(args: MoveNodeToWorkspaceCmdArgs(workspace: "W")),
-                ],
+                matcher: .command(.cmd(TrueCommand.instance)),
+                rawRun: .seq([
+                    .cmd(MoveNodeToWorkspaceCommand(args: MoveNodeToWorkspaceCmdArgs(workspace: "S"))),
+                    .cmd(MoveNodeToWorkspaceCommand(args: MoveNodeToWorkspaceCmdArgs(workspace: "W"))),
+                ]),
             ),
             WindowDetectedCallback( // 5
-                rawRun: [
-                    MoveNodeToWorkspaceCommand(args: MoveNodeToWorkspaceCmdArgs(workspace: "S")),
-                    LayoutCommand(args: LayoutCmdArgs(rawArgs: [], toggleBetween: [.h_tiles])),
-                ],
+                matcher: .command(.cmd(TrueCommand.instance)),
+                rawRun: .seq([
+                    .cmd(MoveNodeToWorkspaceCommand(args: MoveNodeToWorkspaceCmdArgs(workspace: "S"))),
+                    .cmd(LayoutCommand(args: LayoutCmdArgs(rawArgs: [], toggleBetween: [.h_tiles]))),
+                ]),
             ),
             WindowDetectedCallback( // 6
-                matcher: .command(TestCommand(args: matcher6Args)),
-                rawRun: [
-                    MoveNodeToWorkspaceCommand(args: MoveNodeToWorkspaceCmdArgs(workspace: "T")),
-                ],
+                matcher: .command(.cmd(TestCommand(args: matcher6Args))),
+                rawRun: .cmd(MoveNodeToWorkspaceCommand(args: MoveNodeToWorkspaceCmdArgs(workspace: "T"))),
             ),
         ])
 
-        assertEquals(result.errors, [
+        assertEquals(result.strErrors, [
+            "[ERROR] on-window-detected[2]: Omitting \'if\' is error prone. You can use `if = \'true\'` to preserve the previous behavior.\nBut heads up! You may have missed \'check-further-callbacks = true\'",
             "[ERROR] on-window-detected[2]: \'run\' is mandatory key",
+            "[ERROR] on-window-detected[7]: Omitting \'if\' is error prone. You can use `if = \'true\'` to preserve the previous behavior.\nBut heads up! You may have missed \'check-further-callbacks = true\'",
         ])
+    }
+
+    func testParseOnWindowDetected2() {
+        let result = parseConfig(
+            """
+            on-window-detected = [
+                { check-further-callbacks = true, run = '', },
+            ]
+            """,
+        )
+        assertEquals(result.config.onWindowDetected, [
+            WindowDetectedCallback(
+                matcher: .command(.empty),
+                checkFurtherCallbacks: true,
+                rawRun: .empty,
+            ),
+        ])
+
+        assertEquals(result.errors, [])
     }
 
     func testParseInlineTables() {
@@ -400,7 +455,7 @@ final class ConfigTest: XCTestCase {
             if.app-id = 'com.openai.chat'
             run = 'layout floating'
             """,
-        ).errors
+        ).strErrors
         assertEquals(errors, ["[ERROR] (Line 1) Syntax error: invalid or missing key."])
     }
 
@@ -468,11 +523,166 @@ final class ConfigTest: XCTestCase {
                 inner.vertical = [{ foo.main = 1 }, { monitor = { foo = 2, bar = 3 } }, 1]
             """,
         )
-        assertEquals(result2.errors, [
+        assertEquals(result2.strErrors, [
             "[ERROR] gaps.inner.horizontal: The last item in the array must be of type Int",
             "[ERROR] gaps.inner.vertical[0]: The table is expected to have a single key \'monitor\'",
             "[ERROR] gaps.inner.vertical[1].monitor: The table is expected to have a single key",
         ])
+    }
+
+    func testAfterLoginCommandDeprecation() {
+        let result = parseConfig(
+            """
+            after-login-command = ['exec-and-forget echo hi']
+            """,
+        )
+        assertEquals(
+            result.strErrors,
+            ["[ERROR] after-login-command: after-login-command is deprecated since AeroSpace 0.19.0. https://github.com/nikitabobko/AeroSpace/issues/1482"],
+        )
+
+        // Empty array is still accepted
+        let okResult = parseConfig(
+            """
+            after-login-command = []
+            """,
+        )
+        assertEquals(okResult.errors, [])
+    }
+
+    func testOnFocusChangedAsSingleStringAndAsList() {
+        let result = parseConfig(
+            """
+            on-focus-changed = 'focus left'
+            on-mode-changed = ['focus right', 'focus up']
+            on-focused-monitor-changed = 'focus down'
+            """,
+        )
+        assertEquals(result.errors, [])
+        assertEquals(result.config.onFocusChanged.flatten().count, 1)
+        XCTAssertTrue(result.config.onFocusChanged.flatten()[0] is FocusCommand)
+        assertEquals(result.config.onModeChanged.flatten().count, 2)
+        assertEquals(result.config.onFocusedMonitorChanged.flatten().count, 1)
+    }
+
+    func testOnFocusChangedTypeError() {
+        let result = parseConfig(
+            """
+            on-focus-changed = 1
+            """,
+        )
+        assertEquals(
+            result.strErrors,
+            ["[ERROR] on-focus-changed: Expected types are \'string\' or \'array\'. But actual type is \'int\'"],
+        )
+    }
+
+    func testParseDefaultRootContainerLayout() {
+        let result = parseConfig(
+            """
+            default-root-container-layout = 'accordion'
+            """,
+        )
+        assertEquals(result.errors, [])
+        assertEquals(result.config.defaultRootContainerLayout, .accordion)
+
+        let listResult = parseConfig(
+            """
+            default-root-container-layout = 'list'
+            """,
+        )
+        assertEquals(listResult.errors, [])
+        assertEquals(listResult.config.defaultRootContainerLayout, .tiles)
+
+        let bad = parseConfig(
+            """
+            default-root-container-layout = 'bogus'
+            """,
+        )
+        assertEquals(
+            bad.strErrors,
+            ["[ERROR] default-root-container-layout: Can\'t parse layout \'bogus\'"],
+        )
+    }
+
+    func testParseDefaultRootContainerOrientation() {
+        let result = parseConfig(
+            """
+            default-root-container-orientation = 'vertical'
+            """,
+        )
+        assertEquals(result.errors, [])
+        assertEquals(result.config.defaultRootContainerOrientation, .vertical)
+
+        let bad = parseConfig(
+            """
+            default-root-container-orientation = 'diagonal'
+            """,
+        )
+        assertEquals(
+            bad.strErrors,
+            ["[ERROR] default-root-container-orientation: Can\'t parse default container orientation \'diagonal\'"],
+        )
+    }
+
+    func testDeprecatedIndentForNestedContainers() {
+        let errors = parseConfig(
+            """
+            indent-for-nested-containers-with-the-same-orientation = 30
+            """,
+        ).strErrors
+        assertEquals(
+            errors,
+            ["[ERROR] indent-for-nested-containers-with-the-same-orientation: Deprecated. Please drop it from the config. See https://github.com/nikitabobko/AeroSpace/issues/96"],
+        )
+    }
+
+    func testDeprecatedNonEmptyWorkspacesRootContainersLayoutOnStartup() {
+        // The 'smart' value used to be accepted and is silently dropped now
+        let smart = parseConfig(
+            """
+            non-empty-workspaces-root-containers-layout-on-startup = 'smart'
+            """,
+        )
+        assertEquals(smart.errors, [])
+
+        let bad = parseConfig(
+            """
+            non-empty-workspaces-root-containers-layout-on-startup = 'tiles'
+            """,
+        ).strErrors
+        assertEquals(
+            bad,
+            ["[ERROR] non-empty-workspaces-root-containers-layout-on-startup: \'non-empty-workspaces-root-containers-layout-on-startup\' is deprecated. Please drop it from your config"],
+        )
+    }
+
+    func testOutdatedConfigVersionWarning() {
+        let result = parseConfig(
+            """
+            config-version = 1
+            """,
+        )
+        assertEquals(result.errors, [])
+        assertEquals(result.warnings.count, 1)
+        XCTAssertTrue(result.warnings[0].message.contains("'config-version = 1' is outdated"))
+
+        // config-version = 2 (the current max) should not produce the outdated warning
+        let v2 = parseConfig(
+            """
+            config-version = 2
+            """,
+        )
+        assertEquals(v2.errors, [])
+        assertEquals(v2.warnings, [])
+    }
+
+    func testTopLevelTypeIsNotTable() {
+        // TOML arrays at the root parse as a key error, but values returning a non-table json hit the
+        // preventConfigReload path. Use a doubled array-of-tables header to trigger TOML syntax failure
+        // and confirm that an unparsable TOML is flagged as preventing reload.
+        let result = parseConfig("a = ")
+        assertFalse(result.allowReloadConfig)
     }
 
     func testParseKeyMapping() {
@@ -491,7 +701,7 @@ final class ConfigTest: XCTestCase {
             "q": .q,
             "unicorn": .u,
         ]))
-        let binding = HotkeyBinding(.option, .u, [WorkspaceCommand(args: WorkspaceCmdArgs(target: .direct(.parse("unicorn").getOrDie())))])
+        let binding = HotkeyBinding(.option, .u, .cmd(WorkspaceCommand(args: WorkspaceCmdArgs(target: .direct(.parse("unicorn").getOrDie())))))
         assertEquals(result.config.modes[mainModeId]?.bindings, [binding.descriptionWithKeyCode: binding])
 
         let errors1 = parseConfig(
@@ -500,7 +710,7 @@ final class ConfigTest: XCTestCase {
                 q = 'qw'
                 ' f' = 'f'
             """,
-        ).errors
+        ).strErrors
         assertEquals(errors1, [
             "[ERROR] key-mapping.key-notation-to-key-code: ' f' is invalid key notation",
             "[ERROR] key-mapping.key-notation-to-key-code.q: 'qw' is invalid key code",
@@ -522,5 +732,15 @@ final class ConfigTest: XCTestCase {
         assertEquals(colemakResult.errors, [])
         assertEquals(colemakResult.config.keyMapping, KeyMapping(preset: .colemak, rawKeyNotationToKeyCode: [:]))
         assertEquals(colemakResult.config.keyMapping.resolve()["f"], .e)
+    }
+}
+
+extension ParseConfigResult {
+    var strErrors: [String] {
+        errors.map { $0.description(.error) }
+    }
+
+    var strWarnings: [String] {
+        warnings.map { $0.description(.warning) }
     }
 }

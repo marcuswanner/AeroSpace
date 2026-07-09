@@ -7,7 +7,6 @@ public struct ListWorkspacesCmdArgs: CmdArgs {
     /*conforms*/ public var commonState: CmdArgsCommonState
     public static let parser: CmdParser<Self> = .init(
         kind: .listWorkspaces,
-        allowInConfig: false,
         help: list_workspaces_help_generated,
         flags: [
             // Aliases
@@ -40,7 +39,7 @@ public struct ListWorkspacesCmdArgs: CmdArgs {
     public var outputOnlyCount: Bool = false
     public var json: Bool = false
 
-    public struct FilteringOptions: ConvenienceCopyable, Equatable, Sendable {
+    public struct FilteringOptions: ConvenienceMutable, Equatable, Sendable {
         public var onMonitors: [MonitorId] = []
         public var visible: Bool?
         public var empty: Bool?

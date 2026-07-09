@@ -16,12 +16,12 @@ extension [AeroObj] {
                     case .interVar(let varName):
                         switch varName.expandFormatVar(obj: richObj) {
                             case .success(let expanded): rawObj[varName.rawValue] = expanded
-                            case .failure(let error): return .failure(error)
+                            case .failure(let error): return .failure(error.description)
                         }
                 }
             }
             list.append(rawObj)
         }
-        return JSONEncoder.aeroSpaceDefault.encodeToString(list).orFailure("Can't encode '\(list)' to JSON")
+        return JSONEncoder.aeroSpaceDefault.encodeToString(list).toResult("Can't encode '\(list)' to JSON")
     }
 }
