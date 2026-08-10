@@ -26,6 +26,7 @@ enum AxPermissionStatus: Equatable {
 @MainActor func updateTrayText() {
     let sortedMonitors = sortedMonitors
     let focus = focus
+    let focusedWindowIsFloating = focus.windowOrNil?.isFloating == true
     TrayMenuModel.shared.trayText = (activeMode?.takeIf { $0 != mainModeId }?.first.map { "(\($0.uppercased())) " } ?? "") +
         sortedMonitors
         .map {
@@ -35,10 +36,16 @@ enum AxPermissionStatus: Equatable {
         }
         .joined(separator: " │ ")
     TrayMenuModel.shared.workspaces = Workspace.all.map {
-        let apps = $0.allLeafWindowsRecursive.map { $0.app.name?.takeIf { !$0.isEmpty } }.filterNotNil().toSet()
+        let windows = $0.allLeafWindowsRecursive
+        let appName = { (w: Window) in w.app.name?.takeIf { !$0.isEmpty } }
+        let apps = windows.map(appName).filterNotNil().toSet()
+        // Apps that have at least one floating window in this workspace get a leading ⬚ marker
+        let floatingApps = windows.filter(\.isFloating).map(appName).filterNotNil().toSet()
         let dash = " - "
         let suffix = switch true {
-            case !apps.isEmpty: dash + apps.sorted().joinTruncating(separator: ", ", length: 25)
+            case !apps.isEmpty: dash + apps.sorted()
+            .map { floatingApps.contains($0) ? "⬚ \($0)" : $0 }
+            .joinTruncating(separator: ", ", length: 25)
             case $0.isVisible: dash + $0.workspaceMonitor.name
             default: ""
         }
@@ -50,6 +57,7 @@ enum AxPermissionStatus: Equatable {
             isEffectivelyEmpty: $0.isEffectivelyEmpty,
             isVisible: $0.isVisible,
             hasFullscreenWindows: hasFullscreenWindows,
+            isFocusedWindowFloating: focus.workspace == $0 && focusedWindowIsFloating,
         )
     }
     var items = sortedMonitors.map {
@@ -59,10 +67,11 @@ enum AxPermissionStatus: Equatable {
             name: $0.activeWorkspace.name,
             isActive: $0.activeWorkspace == focus.workspace,
             hasFullscreenWindows: hasFullscreenWindows,
+            isFocusedWindowFloating: $0.activeWorkspace == focus.workspace && focusedWindowIsFloating,
         )
     }
     let mode = activeMode?.takeIf { $0 != mainModeId }?.first.map {
-        TrayItem(type: .mode, name: $0.uppercased(), isActive: true, hasFullscreenWindows: false)
+        TrayItem(type: .mode, name: $0.uppercased(), isActive: true, hasFullscreenWindows: false, isFocusedWindowFloating: false)
     }
     if let mode {
         items.insert(mode, at: 0)
@@ -77,6 +86,7 @@ struct WorkspaceViewModel: Hashable {
     let isEffectivelyEmpty: Bool
     let isVisible: Bool
     let hasFullscreenWindows: Bool
+    let isFocusedWindowFloating: Bool
 }
 
 enum TrayItemType: String, Hashable {
@@ -91,6 +101,7 @@ struct TrayItem: Hashable, Identifiable {
     let name: String
     let isActive: Bool
     let hasFullscreenWindows: Bool
+    let isFocusedWindowFloating: Bool
     var systemImageName: String? {
         // System image type is only valid for numbers 0 to 50 and single capital char workspace name
         switch Int(name) {
